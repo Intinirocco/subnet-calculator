@@ -1,0 +1,36 @@
+*.js
+!esbuild.config.mjs
+!esbuild.test.mjs
+*.css
+main.js
+*.map
+
+# Logs and databases #
+logs
+*.log
+
+# OS files
+.DS_Store
+
+# Dependencies
+node_modules
+
+# vault backup file
+.obsidian/plugins/obsidian-sample-plugin/data.json
+
+# Ignore files for publishing addon, but do commit the actual addon-package
+!.github/workflows/release.yml
+.idea
+*.iml
+.env
+.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# misc
+.cache
+CHANGELOG.md
+*.swp
+'Thumbs.db'

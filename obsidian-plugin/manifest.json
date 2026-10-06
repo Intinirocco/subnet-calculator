@@ -1,0 +1,9 @@
+{
+  "id": "subnet-calculator-plugin",
+  "name": "Subnet Calculator",
+  "version": "0.1.0",
+  "minAppVersion": "1.4.0",
+  "description": "Calcolatore di subnetting nei blocchi ```subnet: VLSM/FLSM, analizzatore, verifica piano, topologia e config Cisco IOS.",
+  "author": "Rocco Intini",
+  "isDesktopOnly": true
+}
