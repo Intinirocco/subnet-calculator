@@ -1115,6 +1115,11 @@
           el('span', { className: 'bits-host mono', textContent: '1010' }), ` = ${32 - s.mask} bit che cambiano`));
     }
 
+    if (s) {
+      parts.push(el('h3', { textContent: 'Passaggi del calcolo' }), el('ol', { className: 'steps' },
+        ...v.steps.map(st => el('li', {}, el('b', { textContent: st.title + '. ' }), st.text))));
+    }
+
     parts.push(el('h3', { textContent: 'Reti lette' }), el('div', { className: 'table-wrap' }, el('table', {},
       el('thead', {}, el('tr', {}, ...['Rete', 'Letta come', 'Esito'].map(h => el('th', { textContent: h })))),
       el('tbody', {}, ...v.entries.map(e => el('tr', {},

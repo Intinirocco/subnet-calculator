@@ -99,6 +99,7 @@ const s = supernet(['192.168.0.0/24', '192.168.1.0/24', '192.168.2.0/24', '192.1
 cidr(s.summary);   // '192.168.0.0/22'
 s.exact;           // true: il supernet non contiene indirizzi in più
 s.conditions;      // le 4 condizioni classiche, ognuna { ok, text }
+s.steps;           // i passaggi del calcolo, ognuno { title, text }
 
 const t = supernet('192.168.1.0/24\n192.168.2.0/24');
 t.exact;           // false

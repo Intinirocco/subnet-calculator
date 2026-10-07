@@ -247,6 +247,7 @@ dialog p { margin: 0 0 10px; font-size: 13px; color: var(--muted); }
 #vf-out td, #sn-out td { white-space: normal; vertical-align: top; }
 #vf-out td:first-child, #sn-out td:first-child { white-space: nowrap; }
 #sn-out h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 18px 0 6px; }
+.steps { margin: 0; padding-left: 22px; display: grid; gap: 6px; font-size: 14px; }
 .issues li.no { color: var(--danger); }
 .issues li.no::before { content: "✗"; }
 .issues { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }

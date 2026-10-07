@@ -330,6 +330,7 @@
   //   extra      addresses inside the summary that belong to none of the networks (0 when exact)
   //   blocks     smallest list of networks covering exactly the input, for when one summary is not exact
   //   conditions the four textbook conditions for a perfect supernet, each { ok, text }
+  //   steps      how the summary is worked out, each { title, text }
   const supernet = input => {
     const lines = Array.isArray(input) ? input.map(String) : String(input).split('\n');
     const entries = lines.filter(l => l.trim() && !l.trim().startsWith('#')).map(parseEntry);
@@ -363,7 +364,7 @@
     networks.sort((a, b) => a.n.addr - b.n.addr);
 
     const count = k => entries.reduce((s, e) => s + e.issues.filter(i => i[0] === k).length, 0) + global.filter(g => g[0] === k).length;
-    const result = { entries, valid, networks, summary: null, exact: false, extra: 0, covered: 0, blocks: [], conditions: [], global };
+    const result = { entries, valid, networks, summary: null, exact: false, extra: 0, covered: 0, blocks: [], conditions: [], steps: [], global };
     const done = () => Object.assign(result, { errors: count('err'), warns: count('warn') });
     if (networks.length < 2) {
       global.push(['err', valid.length < 2 ? 'servono almeno due reti valide per fare supernetting.'
@@ -399,7 +400,33 @@
       global.push(['warn', `il supernet ${cidr(summary)} contiene anche ${nf.format(extra)} indirizzi che non appartengono alle reti indicate: ` +
         'una rotta riassunta così instrada anche quelli.']);
     }
-    Object.assign(result, { summary, exact: extra === 0, extra, covered, blocks, conditions });
+    // How the result is reached, one step at a time
+    const octet = (v, k) => (v >>> (24 - 8 * k)) & 255, bin8 = o => o.toString(2).padStart(8, '0');
+    const k = Math.floor(common / 8), inOctet = common - 8 * k, d = networks[0].n.mask - common;
+    const ordinal = ['primo', 'secondo', 'terzo', 'quarto'][k];
+    const steps = [
+      { title: 'Intervallo da coprire',
+        text: `Dal primo indirizzo della prima rete all'ultimo dell'ultima rete: da ${ipStr(first)} a ${ipStr(last)}.` },
+      { title: 'Bit comuni da sinistra',
+        text: (k ? `${k === 1 ? 'Il primo ottetto è uguale' : 'I primi ' + k + ' ottetti sono uguali'} (${8 * k} bit). ` : '') +
+          `Nel ${ordinal} ottetto ${octet(first, k)} = ${bin8(octet(first, k))} e ${octet(last, k)} = ${bin8(octet(last, k))}: ` +
+          (inOctet ? `coincidono i primi ${inOctet} bit.` : 'non coincide nemmeno il primo bit.') +
+          ` Bit comuni: ${8 * k} + ${inOctet} = ${common}.` },
+      { title: 'Prefisso e netmask del supernet',
+        text: `I bit comuni sono il nuovo prefisso: /${common}. Con ${common} bit a 1 e ${32 - common} a 0 la netmask è ${ipStr(maskBits(common))}.` },
+      { title: 'Indirizzo del supernet',
+        text: `Si tengono i ${common} bit comuni e si azzerano gli altri: ${ipStr(summary.addr)}.` +
+          (first === summary.addr ? ' Coincide con la prima rete.' : ` È diverso dalla prima rete (${ipStr(first)}), che quindi non è allineata.`) },
+      sameMask
+        ? { title: 'Quante reti contiene',
+            text: `Il prefisso passa da /${networks[0].n.mask} a /${common}: ${d} bit in meno, quindi il supernet contiene 2^${d} = ${nf.format(Math.pow(2, d))} reti /${networks[0].n.mask}. Tu ne hai indicate ${n}.` }
+        : { title: 'Quante reti contiene',
+            text: `Le reti hanno maschere diverse, quindi si confrontano gli indirizzi: quelle indicate ne coprono ${nf.format(covered)}.` },
+      { title: 'Verifica',
+        text: `Il supernet ha 2^${32 - common} = ${nf.format(sizeOf(common))} indirizzi; le reti indicate ne coprono ${nf.format(covered)}. ` +
+          (extra === 0 ? 'Coincidono: l\'aggregazione è esatta.' : `Restano ${nf.format(extra)} indirizzi in più: l'aggregazione non è esatta.`) },
+    ];
+    Object.assign(result, { summary, exact: extra === 0, extra, covered, blocks, conditions, steps });
     return done();
   };
 
