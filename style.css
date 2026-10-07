@@ -233,8 +233,8 @@ dialog p { margin: 0 0 10px; font-size: 13px; color: var(--muted); }
 .cfg-opts label[hidden] { display: none; }
 
 /* Plan checker */
-#vf-form { margin-top: 14px; }
-#vf-text {
+#vf-form, #sn-form { margin-top: 14px; }
+.plan-text {
   width: 100%; min-height: 150px; resize: vertical; border: 1px solid var(--border); background: var(--surface);
   color: var(--text); border-radius: 9px; padding: 10px; font: 14px/1.5 var(--mono);
 }
@@ -244,8 +244,11 @@ dialog p { margin: 0 0 10px; font-size: 13px; color: var(--muted); }
 .verdict.warn { background: var(--warn-soft); color: var(--warn); }
 .verdict.err { background: var(--danger-soft); color: var(--danger); }
 .verdict small { display: block; font-weight: 400; margin-top: 2px; }
-#vf-out td { white-space: normal; vertical-align: top; }
-#vf-out td:first-child { white-space: nowrap; }
+#vf-out td, #sn-out td { white-space: normal; vertical-align: top; }
+#vf-out td:first-child, #sn-out td:first-child { white-space: nowrap; }
+#sn-out h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 18px 0 6px; }
+.issues li.no { color: var(--danger); }
+.issues li.no::before { content: "✗"; }
 .issues { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
 .issues li::before { font-weight: 700; margin-right: 6px; }
 .issues li.ok { color: var(--ok); }

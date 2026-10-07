@@ -5,7 +5,7 @@ import './subnet-lib.js';
 const lib = globalThis.SubnetLib;
 export default lib;
 export const {
-  info, split, plan, verify, parseCidr, parseEntry, allocate,
+  info, split, plan, verify, supernet, parseCidr, parseEntry, allocate,
   parseIp, ipStr, toBinary, maskBits, wildStr, parseMask, sizeOf, hostsOf, hostBitsFor, maskForHosts,
   lastOf, cidr, usableOf, gatewayNum, gatewayOf, firstHostNum, lastHostNum, broadcastOf,
   classFor, classOf, classMaskOf, typeOf,

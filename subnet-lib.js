@@ -309,9 +309,103 @@
     return { entries, valid, base, baseNote, baseInvalid, global, errors: count('err'), warns: count('warn') };
   };
 
+  // ---------- Supernetting (route summarisation) ----------
+  // Smallest set of CIDR blocks covering exactly the addresses from `a` to `b`
+  const blocksOf = (a, b) => {
+    const out = [];
+    while (a <= b) {
+      let size = a === 0 ? Math.pow(2, 32) : (a & -a) >>> 0;
+      while (size > b - a + 1) size /= 2;
+      out.push({ addr: a, mask: 32 - Math.log2(size) });
+      a += size;
+    }
+    return out;
+  };
+
+  // Aggregates several networks into one supernet and says whether the summary is exact.
+  //   input: text with one network per line ("192.168.0.0/24", "192.168.1.0 255.255.255.0", an optional name
+  //          in front) or an array of such strings. Without a mask the class default is used.
+  // Returns { entries, valid, networks, summary, exact, extra, covered, blocks, conditions, global, errors, warns }:
+  //   summary    { addr, mask } of the smallest single network containing them all (null with fewer than two networks)
+  //   extra      addresses inside the summary that belong to none of the networks (0 when exact)
+  //   blocks     smallest list of networks covering exactly the input, for when one summary is not exact
+  //   conditions the four textbook conditions for a perfect supernet, each { ok, text }
+  const supernet = input => {
+    const lines = Array.isArray(input) ? input.map(String) : String(input).split('\n');
+    const entries = lines.filter(l => l.trim() && !l.trim().startsWith('#')).map(parseEntry);
+    entries.forEach((e, i) => { e.issues = []; e.label = e.name || 'Rete ' + (i + 1); });
+    const err = (e, t) => e.issues.push(['err', t]), warn = (e, t) => e.issues.push(['warn', t]);
+    const global = [];
+
+    entries.forEach(e => {
+      if (e.bad || e.addr === null) { e.addr = null; return err(e, 'non riesco a leggere un indirizzo valido in questa riga.'); }
+      if (e.mask === null) {
+        const cm = classMaskOf(e.addr);
+        if (!cm) return err(e, 'manca la maschera: scrivi /24, 255.255.255.0 oppure la wildcard.');
+        e.mask = cm;
+        warn(e, `maschera non indicata: uso quella della classe ${classOf(e.addr)} (/${cm}).`);
+      }
+      const net = (e.addr & maskBits(e.mask)) >>> 0;
+      if (net !== e.addr) err(e, `${ipStr(e.addr)} non è un indirizzo di rete per /${e.mask}: quello giusto è ${ipStr(net)}.`);
+      e.n = { addr: net, mask: e.mask };
+    });
+    const valid = entries.filter(e => e.n);
+
+    // CIDR blocks are either disjoint or nested: a network repeated or contained in another adds nothing
+    const networks = [];
+    valid.forEach((e, i) => {
+      const twin = valid.find((f, j) => j < i && f.n.addr === e.n.addr && f.n.mask === e.n.mask);
+      const outer = valid.find(f => f !== e && f.n.mask < e.n.mask && e.n.addr >= f.n.addr && e.n.addr <= lastOf(f.n));
+      if (twin) warn(e, `è ripetuta: è la stessa rete di «${twin.label}».`);
+      else if (outer) warn(e, `è già contenuta in «${outer.label}» (${cidr(outer.n)}).`);
+      else networks.push(e);
+    });
+    networks.sort((a, b) => a.n.addr - b.n.addr);
+
+    const count = k => entries.reduce((s, e) => s + e.issues.filter(i => i[0] === k).length, 0) + global.filter(g => g[0] === k).length;
+    const result = { entries, valid, networks, summary: null, exact: false, extra: 0, covered: 0, blocks: [], conditions: [], global };
+    const done = () => Object.assign(result, { errors: count('err'), warns: count('warn') });
+    if (networks.length < 2) {
+      global.push(['err', valid.length < 2 ? 'servono almeno due reti valide per fare supernetting.'
+        : 'le reti indicate si riducono a una sola: servono almeno due reti distinte.']);
+      return done();
+    }
+
+    // Summary: the bits shared by the first and the last address of the whole range
+    const first = networks[0].n.addr, last = Math.max(...networks.map(e => lastOf(e.n)));
+    const common = Math.clz32((first ^ last) >>> 0);
+    const summary = { addr: (first & maskBits(common)) >>> 0, mask: common };
+
+    // Contiguous runs, to count the addresses really covered
+    const runs = [];
+    networks.forEach(e => {
+      const run = runs[runs.length - 1];
+      if (run && e.n.addr === run.b + 1) run.b = lastOf(e.n); else runs.push({ a: e.n.addr, b: lastOf(e.n) });
+    });
+    const covered = runs.reduce((s, r) => s + (r.b - r.a + 1), 0);
+    const extra = sizeOf(summary.mask) - covered;
+    const blocks = runs.flatMap(r => blocksOf(r.a, r.b));
+
+    const n = networks.length, sameMask = networks.every(e => e.n.mask === networks[0].n.mask);
+    const pow2 = (n & (n - 1)) === 0;
+    const conditions = [
+      { ok: sameMask, text: sameMask ? `Tutte le reti hanno la stessa maschera (/${networks[0].n.mask})` : 'Le reti non hanno tutte la stessa maschera' },
+      { ok: runs.length === 1, text: runs.length === 1 ? 'Le reti sono contigue, senza buchi' : `Le reti non sono contigue: ci sono ${runs.length - 1} ${runs.length === 2 ? 'buco' : 'buchi'} tra una e l'altra` },
+      { ok: pow2, text: `Il numero di reti ${pow2 ? 'è' : 'non è'} una potenza di 2 (sono ${n})` },
+      { ok: first === summary.addr, text: first === summary.addr ? `La prima rete (${ipStr(first)}) coincide con l'inizio del supernet`
+        : `La prima rete (${ipStr(first)}) non è allineata: il supernet deve partire da ${ipStr(summary.addr)}` },
+    ];
+    if (extra > 0) {
+      global.push(['warn', `il supernet ${cidr(summary)} contiene anche ${nf.format(extra)} indirizzi che non appartengono alle reti indicate: ` +
+        'una rotta riassunta così instrada anche quelli.']);
+    }
+    Object.assign(result, { summary, exact: extra === 0, extra, covered, blocks, conditions });
+    return done();
+  };
+
   return {
     // text in, plain objects out
-    info, split, plan, verify, parseCidr, parseEntry, allocate,
+    info, split, plan, verify, supernet, parseCidr, parseEntry, allocate,
     // addresses and masks as numbers
     parseIp, ipStr, toBinary, maskBits, wildStr, parseMask, sizeOf, hostsOf, hostBitsFor, maskForHosts,
     // subnets as { addr, mask }

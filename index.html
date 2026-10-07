@@ -138,7 +138,7 @@
     <details id="verify">
       <summary>Verifica il mio partizionamento <span>— incolla le tue sottoreti e controlla se ci sono errori</span></summary>
       <form id="vf-form" novalidate>
-        <textarea id="vf-text" spellcheck="false" aria-label="Le tue sottoreti, una per riga"
+        <textarea id="vf-text" class="plan-text" spellcheck="false" aria-label="Le tue sottoreti, una per riga"
           placeholder="Una sottorete per riga: nome, host richiesti, indirizzo e maschera (nome, host e gateway sono facoltativi)&#10;&#10;Rosa   800  172.16.0.0/22&#10;Rosso  350  172.16.4.0 255.255.254.0&#10;Blu    15   172.16.9.0/27  172.16.9.30"></textarea>
         <div class="vf-row">
           <div class="field">
@@ -151,6 +151,22 @@
         <div class="msg" id="vf-msg">Per ogni riga: l'indirizzo con la maschera (/22, 255.255.252.0 o wildcard). Un numero è letto come host richiesti, un secondo indirizzo come gateway. Per nomi con numeri separa i campi con ; (es. Rete 1; 800; 172.16.0.0/22).</div>
       </form>
       <div id="vf-out"></div>
+    </details>
+  </section>
+
+  <section class="card no-print">
+    <details id="supernet">
+      <summary>Supernetting <span>— aggrega più reti in un'unica rete riassunta e controlla se l'aggregazione è corretta</span></summary>
+      <form id="sn-form" novalidate>
+        <textarea id="sn-text" class="plan-text" spellcheck="false" aria-label="Le reti da aggregare, una per riga"
+          placeholder="Una rete per riga, con la maschera (il nome è facoltativo)&#10;&#10;192.168.0.0/24&#10;192.168.1.0/24&#10;192.168.2.0 255.255.255.0&#10;192.168.3.0/24"></textarea>
+        <div class="vf-row">
+          <button class="btn primary" type="submit">Calcola supernet</button>
+          <button class="btn" type="button" id="sn-load" disabled title="Disponibile quando non ci sono errori: usa il supernet come rete di partenza, con le reti indicate come sottoreti">Carica nella tabella</button>
+        </div>
+        <div class="msg">Il supernet è la più piccola rete che le contiene tutte. È un'aggregazione esatta solo se le reti hanno la stessa maschera, sono contigue, sono in numero potenza di 2 e la prima è allineata.</div>
+      </form>
+      <div id="sn-out"></div>
     </details>
   </section>
 

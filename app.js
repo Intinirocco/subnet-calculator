@@ -652,7 +652,7 @@
     const first = ip >>> 24, classMask = first < 128 ? 8 : first < 192 ? 16 : first < 224 ? 24 : 0;
     if (mask < classMask) {
       return fail(`Maschera non valida: ${ipStr(ip)} è di classe ${classOf(ip)}, la cui maschera predefinita è /${classMask} ` +
-        `(${ipStr(maskBits(classMask))}). Il prefisso deve essere tra /${classMask} e /32, mentre /${mask} è più corto.`);
+        `(${ipStr(maskBits(classMask))}). Il prefisso deve essere tra /${classMask} e /32, mentre /${mask} è più corto. Per aggregare più reti usa la sezione Supernetting.`);
     }
     $('an-msg').textContent = note;
     $('an-msg').classList.remove('error');
@@ -1068,6 +1068,82 @@
     toast('Piano caricato nella tabella');
   });
 
+  // ---------- Supernetting ----------
+  let supernetted = null;
+  const renderSupernet = () => {
+    const v = supernetted;
+    if (!v) { $('sn-out').replaceChildren(); $('sn-load').disabled = true; return; }
+    $('sn-load').disabled = v.errors > 0 || !v.summary;
+    if (!v.entries.length) {
+      $('sn-out').replaceChildren(el('div', { className: 'verdict warn', textContent: 'Non c\'è nessuna rete da aggregare: scrivine almeno due.' }));
+      return;
+    }
+    const issueList = items => el('ul', { className: 'issues' }, ...items.map(([k, t]) => el('li', { className: k, textContent: t })));
+    const s = v.summary, parts = [];
+    const kind = v.errors ? 'err' : !s || !v.exact || v.warns ? 'warn' : 'ok';
+    const title = v.errors ? `Ci sono problemi: ${v.errors} ${v.errors === 1 ? 'errore' : 'errori'}`
+      : v.exact ? (v.warns ? `Aggregazione esatta in ${cidr(s)}, con ${v.warns} ${v.warns === 1 ? 'avviso' : 'avvisi'}` : `Aggregazione esatta: le ${v.networks.length} reti formano ${cidr(s)}`)
+      : `Aggregazione non esatta: ${cidr(s)} contiene più indirizzi di quelli indicati`;
+    parts.push(el('div', { className: 'verdict ' + kind, textContent: title },
+      el('small', { textContent: s ? `${v.networks.length} reti distinte, ${nf.format(v.covered)} indirizzi coperti su ${nf.format(sizeOf(s.mask))} del supernet.` : '' })));
+    if (v.global.length) parts.push(issueList(v.global));
+
+    if (s) {
+      const first = v.networks[0].n;
+      parts.push(el('h3', { textContent: 'Supernet' }), el('div', { className: 'tiles' },
+        tile('Rete riassunta', cidr(s)),
+        tile('Netmask', ipStr(maskBits(s.mask))),
+        tile('Wildcard', wildStr(s.mask)),
+        tile('Intervallo', ipStr(s.addr) + ' – ' + ipStr(lastOf(s))),
+        tile('Bit comuni', `${s.mask} (${first.mask - s.mask > 0 ? first.mask - s.mask + ' in meno di /' + first.mask : 'nessuno in meno'})`)));
+      parts.push(el('h3', { textContent: 'Condizioni classiche del supernetting' }),
+        el('ul', { className: 'issues' }, ...v.conditions.map(c => el('li', { className: c.ok ? 'ok' : 'no', textContent: c.text }))));
+      if (v.exact && v.conditions.some(c => !c.ok)) {
+        parts.push(el('p', { className: 'hint', textContent: 'Non tutte le condizioni classiche sono rispettate, ma le reti coprono comunque ogni indirizzo del supernet: l\'aggregazione resta esatta.' }));
+      }
+      if (!v.exact) {
+        parts.push(el('h3', { textContent: `Aggregazione esatta in ${v.blocks.length} ${v.blocks.length === 1 ? 'rete' : 'reti'}, senza indirizzi in più` }),
+          el('p', { className: 'mono', style: 'margin:0', textContent: v.blocks.map(cidr).join('   ') }));
+      }
+      // The bits shared by every network are the supernet prefix
+      parts.push(el('h3', { textContent: 'In binario: i bit comuni formano il prefisso' }), el('div', { className: 'bin' },
+        ...v.networks.map(e => binRow(e.label, e.n.addr, s.mask)),
+        binRow('Supernet', s.addr, s.mask),
+        binRow('Netmask', maskBits(s.mask), s.mask)),
+        el('p', { className: 'legend' },
+          el('span', { className: 'bits-net mono', textContent: '1010' }), ` = ${s.mask} bit uguali in tutte le reti · `,
+          el('span', { className: 'bits-host mono', textContent: '1010' }), ` = ${32 - s.mask} bit che cambiano`));
+    }
+
+    parts.push(el('h3', { textContent: 'Reti lette' }), el('div', { className: 'table-wrap' }, el('table', {},
+      el('thead', {}, el('tr', {}, ...['Rete', 'Letta come', 'Esito'].map(h => el('th', { textContent: h })))),
+      el('tbody', {}, ...v.entries.map(e => el('tr', {},
+        el('td', {}, el('b', { textContent: e.label })),
+        el('td', { className: 'mono', textContent: e.n ? cidr(e.n) : e.raw }),
+        el('td', {}, issueList(e.issues.length ? e.issues : [['ok', 'Corretta']]))))))));
+    $('sn-out').replaceChildren(...parts);
+  };
+
+  $('sn-form').addEventListener('submit', e => {
+    e.preventDefault();
+    supernetted = SubnetLib.supernet($('sn-text').value);
+    renderSupernet();
+  });
+  $('sn-load').addEventListener('click', () => {
+    const v = supernetted;
+    if (!v || v.errors || !v.summary) return;
+    const base = node(v.summary.addr, v.summary.mask);
+    v.networks.forEach(e => { carve(base, e.n.addr, e.n.mask).label = e.label; });
+    root = base;
+    planned = true;
+    planFixed = false;
+    showFree = false;
+    syncForm();
+    commit();
+    $('stats').scrollIntoView({ block: 'start', behavior: 'smooth' });
+    toast('Supernet caricato nella tabella');
+  });
+
   // ---------- Restore everything to the initial state ----------
   const AN_HELP = $('an-msg').textContent;
   $('restore').addEventListener('click', () => {
@@ -1101,6 +1177,9 @@
     $('vf-base').classList.remove('invalid');
     verified = null;
     renderVerify();
+    $('sn-form').reset();
+    supernetted = null;
+    renderSupernet();
 
     commit();
     render();

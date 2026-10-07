@@ -90,6 +90,24 @@ v.entries[0].issues;      // [['err', 'non bastano gli indirizzi: 800 host richi
 
 Ogni voce ha `issues`, un elenco di `['err' | 'warn', messaggio]`; `global` contiene i problemi del piano nel suo insieme.
 
+### `supernet(reti)`
+
+Aggrega più reti in un'unica rete riassunta. Accetta un testo con una rete per riga oppure un array di stringhe.
+
+```js
+const s = supernet(['192.168.0.0/24', '192.168.1.0/24', '192.168.2.0/24', '192.168.3.0/24']);
+cidr(s.summary);   // '192.168.0.0/22'
+s.exact;           // true: il supernet non contiene indirizzi in più
+s.conditions;      // le 4 condizioni classiche, ognuna { ok, text }
+
+const t = supernet('192.168.1.0/24\n192.168.2.0/24');
+t.exact;           // false
+t.extra;           // 512 indirizzi del supernet che non appartengono alle reti indicate
+t.blocks;          // aggregazione esatta in più reti: [{ addr, mask }, …]
+```
+
+Come `verify`, ogni voce ha `issues` (indirizzo non di rete, rete ripetuta o già contenuta in un'altra…).
+
 ### Altre
 
 - `split('10.0.0.0/8')` → le due metà, come oggetti `info`.
