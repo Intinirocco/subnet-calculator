@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Revisione esercizio</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1 id="rev-title">Revisione esercizio</h1>
+      <p id="rev-sub">L'esercizio, le risposte date e la correzione.</p>
+    </div>
+    <div class="header-actions">
+      <a class="btn" href="esercizi.html">Esercizi</a>
+      <button class="btn" id="theme" title="Cambia tema" aria-label="Cambia tema">◐</button>
+    </div>
+  </header>
+
+  <section class="card">
+    <h2 class="card-title">Testo dell'esercizio</h2>
+    <div id="rev-statement"></div>
+  </section>
+
+  <section class="card">
+    <h2 class="card-title">Risposte e correzione</h2>
+    <div id="rev-attempts"></div>
+  </section>
+
+  <section class="card">
+    <details id="rev-solution-box">
+      <summary>Soluzione del sito</summary>
+      <div id="rev-solution"></div>
+    </details>
+  </section>
+</main>
+
+<script src="subnet-lib.js"></script>
+<script src="esercizi-comune.js"></script>
+<script src="revisione.js"></script>
+</body>
+</html>

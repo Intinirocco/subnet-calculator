@@ -109,6 +109,26 @@ t.blocks;          // aggregazione esatta in più reti: [{ addr, mask }, …]
 
 Come `verify`, ogni voce ha `issues` (indirizzo non di rete, rete ripetuta o già contenuta in un'altra…).
 
+### `exercise` — esercizi di partizionamento
+
+```js
+const { generate, check, hints, solve } = SubnetLib.exercise;
+
+// Casuale: livello 'facile' | 'medio' | 'difficile'; randomMask false = il tipo di maschera lo sceglie lo studente
+const { exercise: ex } = generate({ mode: 'random', level: 'medio', randomMask: true, baseMode: 'given' });
+// Personalizzato
+generate({ mode: 'custom', nets: [{ name: 'Uffici', hosts: 50 }, { name: 'Lab', hosts: 20 }], maskType: 'variable', baseMode: 'choose' });
+
+// Correzione: una riga per rete, nell'ordine dell'esercizio (network, prefix, netmask e broadcast obbligatori)
+const res = check(ex, { base: '', maskType: '', rows: [{ network: '192.168.1.0', prefix: '/26', netmask: '255.255.255.192', broadcast: '192.168.1.63' }] });
+res.errors; res.warns; res.correctRows;   // conteggi
+res.rows[0].fields.broadcast;              // { status: 'ok' | 'err' | 'warn' | 'empty', expected }
+res.rows[0].issues;                        // [{ level, field, text }]
+
+hints(ex);   // suggerimenti progressivi
+solve(ex);   // la soluzione del sito
+```
+
 ### Altre
 
 - `split('10.0.0.0/8')` → le due metà, come oggetti `info`.

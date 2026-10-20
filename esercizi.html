@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Esercizi di subnetting</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>Esercizi di subnetting</h1>
+      <p>Genera un esercizio di partizionamento, risolvilo e fattelo correggere.</p>
+    </div>
+    <div class="header-actions">
+      <a class="btn" href="index.html">Calcolatore</a>
+      <button class="btn" id="theme" title="Cambia tema" aria-label="Cambia tema">◐</button>
+    </div>
+  </header>
+
+  <section class="card">
+    <details id="new-ex" open>
+      <summary>Nuovo esercizio</summary>
+      <form id="gen-form" novalidate>
+        <fieldset class="vlsm-base inline">
+          <legend>Tipo di esercizio</legend>
+          <label><input type="radio" name="gen-mode" value="random" checked> Casuale</label>
+          <label><input type="radio" name="gen-mode" value="custom"> Personalizzato</label>
+        </fieldset>
+
+        <div id="gen-random" class="vlsm-top">
+          <fieldset class="vlsm-base">
+            <legend>Livello</legend>
+            <label><input type="radio" name="gen-level" value="facile" checked> Facile: 3–4 reti, 5–60 host, classe C</label>
+            <label><input type="radio" name="gen-level" value="medio"> Medio: 4–6 reti, 10–500 host, classe C o B</label>
+            <label><input type="radio" name="gen-level" value="difficile"> Difficile: 6–8 reti, 2–2.000 host, classe B, a volte link punto-punto</label>
+          </fieldset>
+          <fieldset class="vlsm-base">
+            <legend>Maschera</legend>
+            <label><input type="checkbox" id="gen-random-mask" checked> Tipo di maschera casuale</label>
+            <span class="hint">Se non è spuntato, lo studente sceglie da solo se usare la maschera fissa o variabile.</span>
+          </fieldset>
+        </div>
+
+        <div id="gen-custom" hidden>
+          <div class="vlsm-top">
+            <div class="field">
+              <label for="gen-count">Numero di reti</label>
+              <input id="gen-count" type="number" min="2" max="64" value="4">
+            </div>
+            <fieldset class="vlsm-base">
+              <legend>Maschera</legend>
+              <label><input type="radio" name="gen-mask" value="variable" checked> Variabile (VLSM)</label>
+              <label><input type="radio" name="gen-mask" value="fixed"> Fissa (FLSM)</label>
+              <label><input type="radio" name="gen-mask" value="student"> La sceglie lo studente</label>
+            </fieldset>
+          </div>
+          <div class="vlsm-rows" id="gen-rows"></div>
+        </div>
+
+        <div class="vlsm-top gen-base">
+          <fieldset class="vlsm-base">
+            <legend>Rete di partenza</legend>
+            <label><input type="radio" name="gen-base" value="given" checked> Fornita dall'esercizio</label>
+            <label><input type="radio" name="gen-base" value="choose"> La sceglie lo studente in base alle reti</label>
+          </fieldset>
+          <div class="field" id="gen-base-field" hidden>
+            <label for="gen-base-net" title="Lascia vuoto per usare la rete privata standard più piccola che basta">Rete fornita (facoltativa)</label>
+            <input id="gen-base-net" autocomplete="off" spellcheck="false" placeholder="automatica">
+          </div>
+        </div>
+
+        <div class="vlsm-actions">
+          <button class="btn primary" type="submit">Genera esercizio</button>
+        </div>
+        <div class="msg" id="gen-msg" role="status"></div>
+      </form>
+    </details>
+  </section>
+
+  <section class="card" id="ex-card" hidden>
+    <div class="toolbar">
+      <h2 class="card-title" id="ex-title">Esercizio</h2>
+      <span class="spacer"></span>
+      <button class="btn small" type="button" id="ex-share" title="Copia un link che apre questo stesso esercizio">Copia esercizio</button>
+    </div>
+    <div id="ex-statement"></div>
+
+    <form id="ans-form" novalidate>
+      <h3 class="section-label">La tua soluzione</h3>
+      <div class="vlsm-top" id="ans-choices"></div>
+      <div class="table-wrap">
+        <table class="ans-table">
+          <thead>
+            <tr>
+              <th>Rete</th>
+              <th class="num">Host</th>
+              <th>Indirizzo di rete *</th>
+              <th>Prefisso *</th>
+              <th>Netmask *</th>
+              <th>Broadcast *</th>
+              <th>Gateway</th>
+              <th>Primo host</th>
+              <th>Ultimo host</th>
+            </tr>
+          </thead>
+          <tbody id="ans-body"></tbody>
+        </table>
+      </div>
+      <p class="hint">* obbligatori. Gli altri campi sono facoltativi, ma se li compili vengono corretti. Il gateway è l'indirizzo prima del broadcast.</p>
+      <div class="vlsm-actions">
+        <button class="btn primary" type="submit">Correggi</button>
+        <button class="btn" type="button" id="ex-hint">Suggerimento</button>
+        <button class="btn" type="button" id="ex-solution">Mostra soluzione</button>
+      </div>
+    </form>
+
+    <ol class="hints" id="ex-hints"></ol>
+    <div id="ex-result"></div>
+    <div id="ex-solution-out"></div>
+  </section>
+
+  <section class="card">
+    <div class="toolbar">
+      <h2 class="card-title">Cronologia di oggi</h2>
+      <span class="spacer"></span>
+      <button class="btn small" type="button" id="hist-clear">Svuota cronologia</button>
+    </div>
+    <div id="hist"></div>
+  </section>
+</main>
+<div id="toast" role="status"></div>
+
+<script src="subnet-lib.js"></script>
+<script src="esercizi-comune.js"></script>
+<script src="esercizi.js"></script>
+</body>
+</html>

@@ -430,7 +430,246 @@
     return done();
   };
 
+  // ---------- Exercises ----------
+  const DEPARTMENTS = ['Amministrazione', 'Laboratorio', 'Segreteria', 'Magazzino', 'Produzione', 'Vendite', 'Direzione',
+    'Ufficio tecnico', 'Marketing', 'Assistenza', 'Ricerca', 'Logistica', 'Contabilità', 'Risorse umane', 'Aula informatica',
+    'Biblioteca', 'Reception', 'Sala server'];
+  const LEVELS = {
+    facile: { label: 'Facile', nets: [3, 4], hosts: [5, 60], classes: ['C'], links: [0, 0] },
+    medio: { label: 'Medio', nets: [4, 6], hosts: [10, 500], classes: ['C', 'B'], links: [0, 0] },
+    difficile: { label: 'Difficile', nets: [6, 8], hosts: [2, 2000], classes: ['B'], links: [0, 3] },
+  };
+  const rand = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+  const shuffle = list => {
+    const a = list.slice();
+    for (let i = a.length - 1; i > 0; i--) { const j = rand(0, i); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  };
+  // Log-uniform, so small and large host counts are equally likely
+  const randHosts = (lo, hi) => Math.round(Math.exp(Math.log(lo) + Math.random() * (Math.log(hi) - Math.log(lo))));
+  const randomBase = cls => (cls === 'C' ? { addr: parseIp(`192.168.${rand(0, 255)}.0`), mask: 24 }
+    : cls === 'B' ? { addr: parseIp(`172.${rand(16, 31)}.0.0`), mask: 16 } : Object.assign({}, PRIVATE.A));
+  // Addresses taken by the networks: one block each, all as big as the largest one with a fixed mask
+  const neededFor = (nets, maskType) => (maskType === 'fixed'
+    ? nets.length * sizeOf(Math.min(...nets.map(n => maskForHosts(n.hosts))))
+    : nets.reduce((s, n) => s + sizeOf(maskForHosts(n.hosts)), 0));
+  // A standard private network with its class mask: 192.168.x.0/24, 172.16-31.0.0/16 or 10.0.0.0/8
+  const isClassfulPrivate = n => (n.mask === 24 && inNet(n.addr, '192.168.0.0', 16))
+    || (n.mask === 16 && inNet(n.addr, '172.16.0.0', 12)) || (n.mask === 8 && n.addr === PRIVATE.A.addr);
+
+  // Creates an exercise.
+  //   random: { mode: 'random', level: 'facile' | 'medio' | 'difficile', randomMask, baseMode: 'given' | 'choose' }
+  //   custom: { mode: 'custom', nets: [{ name, hosts }], maskType: 'fixed' | 'variable' | null, baseMode, base?: '172.16.0.0/16' }
+  // maskType null means the student has to choose it; baseMode 'choose' means the student picks the starting network.
+  // Returns { ok: true, exercise } or { ok: false, message }.
+  const generate = (opts = {}) => {
+    const baseMode = opts.baseMode === 'choose' ? 'choose' : 'given';
+    if (opts.mode === 'custom') {
+      const nets = (opts.nets || []).map((n, i) => ({ name: String(n.name || '').trim() || 'Rete ' + (i + 1), hosts: Number(n.hosts) }));
+      if (nets.length < 2) return { ok: false, message: 'Servono almeno due reti.' };
+      if (nets.some(n => !Number.isInteger(n.hosts) || n.hosts < 1 || n.hosts > 16777214)) {
+        return { ok: false, message: 'Ogni rete deve avere un numero intero di host, almeno 1.' };
+      }
+      const maskType = opts.maskType === 'fixed' || opts.maskType === 'variable' ? opts.maskType : null;
+      // When the student chooses the mask, either choice must fit
+      const needed = neededFor(nets, maskType || 'fixed');
+      let base = null;
+      if (baseMode === 'given') {
+        if (opts.base && String(opts.base).trim()) {
+          base = parseCidr(opts.base);
+          if (!base) return { ok: false, message: 'La rete di partenza non è valida: scrivila come 172.16.0.0/16.' };
+          if (needed > sizeOf(base.mask)) return { ok: false, message: `${cidr(base)} è troppo piccola: servono ${nf.format(needed)} indirizzi.` };
+        } else {
+          const cls = classFor(needed);
+          if (!cls) return { ok: false, message: `Servono ${nf.format(needed)} indirizzi: non entrano nemmeno in una classe A.` };
+          base = PRIVATE[cls];
+        }
+      } else if (!classFor(needed)) {
+        return { ok: false, message: `Servono ${nf.format(needed)} indirizzi: non entrano nemmeno in una classe A.` };
+      }
+      return { ok: true, exercise: { v: 1, level: 'personalizzato', nets, maskType, baseMode, base: base ? cidr(base) : null } };
+    }
+
+    const level = LEVELS[opts.level] ? opts.level : 'facile', L = LEVELS[level];
+    for (let attempt = 0; attempt < 1000; attempt++) {
+      const nets = shuffle(DEPARTMENTS).slice(0, rand(L.nets[0], L.nets[1])).map(name => ({ name, hosts: randHosts(L.hosts[0], L.hosts[1]) }));
+      const links = rand(L.links[0], L.links[1]);
+      for (let i = 1; i <= links; i++) nets.push({ name: 'Link punto-punto ' + i, hosts: 2 });
+      const maskType = opts.randomMask ? (Math.random() < 0.5 ? 'fixed' : 'variable') : null;
+      const cls = classFor(neededFor(nets, maskType || 'fixed'));
+      if (!cls || !L.classes.includes(cls)) continue;
+      return { ok: true, exercise: { v: 1, level, nets, maskType, baseMode, base: baseMode === 'given' ? cidr(randomBase(cls)) : null } };
+    }
+    return { ok: false, message: 'Non sono riuscito a generare un esercizio: riprova.' };
+  };
+
+  // The site's solution, in the order of the exercise. With a starting network to choose, the standard one of the class is used.
+  const solve = (ex, chosenMask) => {
+    const maskType = ex.maskType || chosenMask || 'variable';
+    const base = ex.base ? parseCidr(ex.base) : null;
+    const res = allocate(ex.nets.map((n, i) => ({ name: n.name, hosts: n.hosts, index: i })), { fixed: maskType === 'fixed', base });
+    if (!res.ok) return { ok: false, maskType };
+    const rows = [];
+    res.items.forEach(it => { rows[it.index] = Object.assign({ name: it.name, hosts: it.hosts }, info(it)); });
+    return { ok: true, maskType, base: info(res.base), cls: res.cls || classOf(res.base.addr), rows };
+  };
+
+  // Progressive hints: show the first one, then one more each time
+  const hints = (ex, chosenMask) => {
+    const maskType = ex.maskType || chosenMask || null;
+    const biggest = ex.nets.reduce((a, b) => (b.hosts > a.hosts ? b : a));
+    const h = hostBitsFor(biggest.hosts);
+    const list = [];
+    if (!ex.maskType && !chosenMask) {
+      list.push('Prima scegli il tipo di partizionamento: a maschera variabile ogni rete ha la maschera più piccola che le basta, a maschera fissa tutte hanno la maschera della rete più grande.');
+    }
+    list.push('Per ogni rete: host + 2 (indirizzo di rete e broadcast), poi arrotonda alla potenza di 2 successiva. L\'esponente è il numero di bit di host e il prefisso è 32 meno quei bit.');
+    list.push(`La rete più grande è «${biggest.name}» con ${nf.format(biggest.hosts)} host: ${nf.format(biggest.hosts)} + 2 = ${nf.format(biggest.hosts + 2)}, ` +
+      `la potenza di 2 che basta è 2^${h} = ${nf.format(Math.pow(2, h))}, quindi /${32 - h}.` +
+      (maskType === 'fixed' ? ' A maschera fissa è la maschera di tutte le reti.' : ''));
+    const needed = neededFor(ex.nets, maskType || 'variable');
+    if (ex.baseMode === 'choose') {
+      const cls = classFor(needed);
+      list.push(`In tutto servono ${nf.format(needed)} indirizzi${maskType ? '' : ' a maschera variabile'}: la rete privata più piccola che basta è di classe ${cls}, per esempio ${cidr(PRIVATE[cls])}.`);
+    }
+    list.push('Assegna le reti dalla più grande alla più piccola, una subito dopo l\'altra, partendo dall\'inizio della rete di partenza: così ogni rete è allineata.');
+    const sol = solve(ex, maskType || 'variable');
+    if (sol.ok) {
+      const row = sol.rows[ex.nets.indexOf(biggest)];
+      list.push(`«${biggest.name}» parte dall'inizio della rete: ${row.cidr}, con netmask ${row.netmask} e broadcast ${row.broadcast}.`);
+    }
+    return list;
+  };
+
+  const ANSWER_FIELDS = ['network', 'prefix', 'netmask', 'broadcast', 'gateway', 'firstHost', 'lastHost'];
+  const REQUIRED_FIELDS = ['network', 'prefix', 'netmask', 'broadcast'];
+  const FIELD_NAMES = { network: 'l\'indirizzo di rete', prefix: 'il prefisso', netmask: 'la netmask', broadcast: 'il broadcast',
+    gateway: 'il gateway', firstHost: 'il primo host', lastHost: 'l\'ultimo host' };
+
+  // Corrects an answer.
+  //   answer: { base, maskType, rows: [{ network, prefix, netmask, broadcast, gateway?, firstHost?, lastHost? }] }  (strings, in exercise order)
+  // Returns { global, rows, errors, warns, correctRows, total, perfect }. Every row has `fields` ({ status, expected } per field,
+  // status 'ok' | 'err' | 'warn' | 'empty') and `issues` ({ level, field, text }); global issues concern the whole answer.
+  const check = (ex, answer = {}) => {
+    const global = [];
+    const gIssue = (level, field, text) => global.push({ level, field, text });
+    const maskType = ex.maskType || (answer.maskType === 'fixed' || answer.maskType === 'variable' ? answer.maskType : null);
+    if (!maskType) gIssue('err', 'maskType', 'Scegli se il partizionamento è a maschera fissa o variabile.');
+    const fixedMask = Math.min(...ex.nets.map(n => maskForHosts(n.hosts)));
+
+    // Starting network
+    let base = null;
+    if (ex.baseMode === 'given') base = parseCidr(ex.base);
+    else {
+      const text = String(answer.base || '').trim();
+      const parts = text.split(/[\/\s]+/), ip = parseIp(parts[0] || ''), m = parts[1] === undefined ? null : parseMask(parts[1]);
+      if (!text) gIssue('err', 'base', 'Indica la rete di partenza che hai scelto.');
+      else if (ip === null || m === null) gIssue('err', 'base', 'La rete di partenza non è valida: scrivila come indirizzo e prefisso, per esempio 172.16.0.0/16.');
+      else {
+        base = { addr: (ip & maskBits(m)) >>> 0, mask: m };
+        const needed = neededFor(ex.nets, maskType || 'variable'), best = classFor(needed);
+        if (base.addr !== ip) gIssue('err', 'base', `${ipStr(ip)} non è un indirizzo di rete per /${m}: dovrebbe essere ${ipStr(base.addr)}.`);
+        if (!isClassfulPrivate(base)) {
+          gIssue('err', 'base', 'La rete di partenza deve essere una rete privata con la maschera della sua classe: 192.168.x.0/24 (classe C), 172.16.0.0/16 … 172.31.0.0/16 (classe B) o 10.0.0.0/8 (classe A).');
+        } else if (sizeOf(base.mask) < needed) {
+          gIssue('err', 'base', `${cidr(base)} è troppo piccola: servono ${nf.format(needed)} indirizzi, quindi almeno una classe ${best}.`);
+        } else if (best && base.mask < PRIVATE[best].mask) {
+          gIssue('warn', 'base', `Servono ${nf.format(needed)} indirizzi: bastava una classe ${best} (per esempio ${cidr(PRIVATE[best])}).`);
+        }
+      }
+    }
+
+    const rows = ex.nets.map((net, i) => {
+      const a = (answer.rows || [])[i] || {};
+      const r = { fields: {}, issues: [], n: null };
+      const val = f => String(a[f] === undefined || a[f] === null ? '' : a[f]).trim();
+      const rank = { empty: 0, ok: 1, warn: 2, err: 3 };
+      const mark = (f, status, expected) => {
+        const cur = r.fields[f];
+        if (!cur || rank[status] > rank[cur.status]) r.fields[f] = { status, expected: expected === undefined ? (cur && cur.expected) : expected };
+      };
+      const issue = (level, f, text, expected) => { r.issues.push({ level, field: f, text }); mark(f, level, expected); };
+      ANSWER_FIELDS.forEach(f => mark(f, val(f) ? 'ok' : 'empty'));
+      REQUIRED_FIELDS.forEach(f => { if (!val(f)) issue('err', f, `Manca ${FIELD_NAMES[f]}: è obbligatorio.`); });
+
+      const ip = val('network') ? parseIp(val('network')) : null;
+      if (val('network') && ip === null) issue('err', 'network', `«${val('network')}» non è un indirizzo IPv4 valido.`);
+      let prefix = null;
+      const p = val('prefix').replace(/^\//, '');
+      if (p) {
+        if (/^\d{1,2}$/.test(p) && Number(p) <= 32) prefix = Number(p);
+        else issue('err', 'prefix', 'Il prefisso deve essere un numero da 0 a 32, per esempio /26.');
+      }
+      const need = maskForHosts(net.hosts);
+      if (prefix !== null) {
+        if (net.hosts > hostsOf(prefix)) {
+          issue('err', 'prefix', `Una /${prefix} ha ${nf.format(hostsOf(prefix))} host, ne servono ${nf.format(net.hosts)}: serve almeno una /${need}.`, '/' + need);
+        } else if (maskType === 'fixed' && prefix !== fixedMask) {
+          issue('err', 'prefix', `A maschera fissa tutte le reti hanno la maschera della rete più grande: /${fixedMask}.`, '/' + fixedMask);
+        } else if (maskType !== 'fixed' && prefix < need) {
+          issue('warn', 'prefix', `Più grande del necessario: per ${nf.format(net.hosts)} host basta una /${need}.`, '/' + need);
+        }
+      }
+      // The other fields are checked against the student's own network and prefix
+      const compare = (f, expected, text) => {
+        if (!val(f)) return;
+        const got = parseIp(val(f));
+        if (got === null) issue('err', f, `«${val(f)}» non è un indirizzo valido. ${text}`, ipStr(expected));
+        else if (got !== expected) issue('err', f, text, ipStr(expected));
+      };
+      if (prefix !== null) compare('netmask', maskBits(prefix), `La netmask di una /${prefix} è ${ipStr(maskBits(prefix))}: ${prefix} bit a 1 e ${32 - prefix} a 0.`);
+      if (ip !== null && prefix !== null) {
+        const n = { addr: (ip & maskBits(prefix)) >>> 0, mask: prefix };
+        r.n = n;
+        if (n.addr !== ip) issue('err', 'network', `${ipStr(ip)} non è un indirizzo di rete per /${prefix}: i bit di host devono essere a 0, quindi ${ipStr(n.addr)}.`, ipStr(n.addr));
+        compare('broadcast', lastOf(n), `Il broadcast di ${cidr(n)} è ${ipStr(lastOf(n))}: i bit di host tutti a 1.`);
+        compare('gateway', gatewayNum(n), `Per convenzione il gateway è l'indirizzo prima del broadcast: ${gatewayOf(n)}.`);
+        compare('firstHost', firstHostNum(n), `Il primo host è l'indirizzo subito dopo quello di rete: ${ipStr(firstHostNum(n))}.`);
+        if (val('lastHost')) {
+          const got = parseIp(val('lastHost'));
+          if (prefix < 31 && got === gatewayNum(n)) {
+            issue('warn', 'lastHost', `${ipStr(got)} è l'ultimo indirizzo utilizzabile, ma è quello del gateway: l'ultimo host è ${ipStr(lastHostNum(n))}.`, ipStr(lastHostNum(n)));
+          } else {
+            compare('lastHost', lastHostNum(n), `L'ultimo host è l'indirizzo prima del gateway: ${ipStr(lastHostNum(n))}.`);
+          }
+        }
+        if (base && (n.addr < base.addr || lastOf(n) > lastOf(base))) issue('err', 'network', `È fuori dalla rete di partenza ${cidr(base)}.`);
+      }
+      return r;
+    });
+
+    // Overlaps, then layout in address order
+    const placed = rows.map((r, i) => ({ r, i, n: r.n, name: ex.nets[i].name })).filter(x => x.n);
+    placed.forEach((x, a) => placed.forEach((y, b) => {
+      if (b <= a || x.n.addr > lastOf(y.n) || y.n.addr > lastOf(x.n)) return;
+      x.r.issues.push({ level: 'err', field: 'network', text: `Si sovrappone a «${y.name}» (${cidr(y.n)}).` });
+      y.r.issues.push({ level: 'err', field: 'network', text: `Si sovrappone a «${x.name}» (${cidr(x.n)}).` });
+      x.r.fields.network.status = y.r.fields.network.status = 'err';
+    }));
+    const inside = placed.filter(x => !base || (x.n.addr >= base.addr && lastOf(x.n) <= lastOf(base))).sort((x, y) => x.n.addr - y.n.addr);
+    if (base && inside.length && inside[0].n.addr > base.addr) {
+      gIssue('warn', 'layout', `Il piano non parte dall'inizio della rete: i primi ${nf.format(inside[0].n.addr - base.addr)} indirizzi di ${cidr(base)} restano inutilizzati.`);
+    }
+    inside.forEach((x, k) => {
+      const prev = inside[k - 1];
+      if (!prev || x.n.addr <= lastOf(prev.n)) return;
+      const warn = text => { x.r.issues.push({ level: 'warn', field: 'network', text }); if (x.r.fields.network.status === 'ok') x.r.fields.network.status = 'warn'; };
+      const gap = x.n.addr - lastOf(prev.n) - 1;
+      if (gap > 0) warn(`C'è un buco di ${nf.format(gap)} indirizzi tra «${prev.name}» e questa rete.`);
+      if (x.n.mask < prev.n.mask) warn(`È più grande di «${prev.name}», che la precede: si assegna dalla rete più grande alla più piccola.`);
+    });
+
+    const count = level => rows.reduce((s, r) => s + r.issues.filter(i => i.level === level).length, 0) + global.filter(g => g.level === level).length;
+    const correctRows = rows.filter(r => !r.issues.some(i => i.level === 'err')).length;
+    const errors = count('err'), warns = count('warn');
+    return { global, rows, errors, warns, correctRows, total: rows.length, perfect: errors === 0 && warns === 0, maskType };
+  };
+
+  const exercise = { LEVELS, generate, solve, hints, check, neededFor, ANSWER_FIELDS, REQUIRED_FIELDS };
+
   return {
+    // exercises
+    exercise,
     // text in, plain objects out
     info, split, plan, verify, supernet, parseCidr, parseEntry, allocate,
     // addresses and masks as numbers
