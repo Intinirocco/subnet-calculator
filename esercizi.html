@@ -13,70 +13,83 @@
       <h1>Esercizi di subnetting</h1>
       <p>Genera un esercizio di partizionamento, risolvilo e fattelo correggere.</p>
     </div>
+    <nav class="site-nav" aria-label="Sezioni del sito">
+      <a href="index.html">Calcolatore</a>
+      <a href="esercizi.html" class="active" aria-current="page">Esercizi</a>
+    </nav>
     <div class="header-actions">
-      <a class="btn" href="index.html">Calcolatore</a>
       <button class="btn" id="theme" title="Cambia tema" aria-label="Cambia tema">◐</button>
     </div>
   </header>
 
-  <section class="card">
-    <details id="new-ex" open>
-      <summary>Nuovo esercizio</summary>
-      <form id="gen-form" novalidate>
-        <fieldset class="vlsm-base inline">
-          <legend>Tipo di esercizio</legend>
-          <label><input type="radio" name="gen-mode" value="random" checked> Casuale</label>
-          <label><input type="radio" name="gen-mode" value="custom"> Personalizzato</label>
-        </fieldset>
+  <section class="card gen-card">
+    <div class="gen-head">
+      <div>
+        <h2 class="card-title">Nuovo esercizio</h2>
+        <p class="hint">Scegli come vuoi l'esercizio, poi premi «Genera».</p>
+      </div>
+      <div class="seg" role="radiogroup" aria-label="Tipo di esercizio">
+        <label><input type="radio" name="gen-mode" value="random" checked><span>Casuale</span></label>
+        <label><input type="radio" name="gen-mode" value="custom"><span>Personalizzato</span></label>
+      </div>
+    </div>
 
-        <div id="gen-random" class="vlsm-top">
-          <fieldset class="vlsm-base">
-            <legend>Livello</legend>
-            <label><input type="radio" name="gen-level" value="facile" checked> Facile: 3–4 reti, 5–60 host, classe C</label>
-            <label><input type="radio" name="gen-level" value="medio"> Medio: 4–6 reti, 10–500 host, classe C o B</label>
-            <label><input type="radio" name="gen-level" value="difficile"> Difficile: 6–8 reti, 2–2.000 host, classe B, a volte link punto-punto</label>
-          </fieldset>
-          <fieldset class="vlsm-base">
-            <legend>Maschera</legend>
-            <label><input type="checkbox" id="gen-random-mask" checked> Tipo di maschera casuale</label>
-            <span class="hint">Se non è spuntato, lo studente sceglie da solo se usare la maschera fissa o variabile.</span>
-          </fieldset>
+    <form id="gen-form" novalidate>
+      <div id="gen-random">
+        <h3 class="step"><span>1</span> Livello di difficoltà</h3>
+        <div class="opts three" role="radiogroup" aria-label="Livello">
+          <label class="opt"><input type="radio" name="gen-level" value="facile" checked>
+            <span class="opt-body"><b>Facile</b><small>3–4 reti · 5–60 host</small><em>Classe C</em></span></label>
+          <label class="opt"><input type="radio" name="gen-level" value="medio">
+            <span class="opt-body"><b>Medio</b><small>4–6 reti · 10–500 host</small><em>Classe C o B</em></span></label>
+          <label class="opt"><input type="radio" name="gen-level" value="difficile">
+            <span class="opt-body"><b>Difficile</b><small>6–8 reti · 2–2.000 host</small><em>Classe B, a volte link punto-punto</em></span></label>
         </div>
 
-        <div id="gen-custom" hidden>
-          <div class="vlsm-top">
-            <div class="field">
-              <label for="gen-count">Numero di reti</label>
-              <input id="gen-count" type="number" min="2" max="64" value="4">
-            </div>
-            <fieldset class="vlsm-base">
-              <legend>Maschera</legend>
-              <label><input type="radio" name="gen-mask" value="variable" checked> Variabile (VLSM)</label>
-              <label><input type="radio" name="gen-mask" value="fixed"> Fissa (FLSM)</label>
-              <label><input type="radio" name="gen-mask" value="student"> La sceglie lo studente</label>
-            </fieldset>
-          </div>
-          <div class="vlsm-rows" id="gen-rows"></div>
-        </div>
+        <h3 class="step"><span>2</span> Tipo di maschera</h3>
+        <label class="switch">
+          <input type="checkbox" id="gen-random-mask" checked>
+          <span class="track" aria-hidden="true"></span>
+          <span class="switch-text"><b>Casuale</b><small>L'esercizio dice se usare la maschera fissa o variabile. Se lo disattivi, la sceglie lo studente.</small></span>
+        </label>
+      </div>
 
-        <div class="vlsm-top gen-base">
-          <fieldset class="vlsm-base">
-            <legend>Rete di partenza</legend>
-            <label><input type="radio" name="gen-base" value="given" checked> Fornita dall'esercizio</label>
-            <label><input type="radio" name="gen-base" value="choose"> La sceglie lo studente in base alle reti</label>
-          </fieldset>
-          <div class="field" id="gen-base-field" hidden>
-            <label for="gen-base-net" title="Lascia vuoto per usare la rete privata standard più piccola che basta">Rete fornita (facoltativa)</label>
-            <input id="gen-base-net" autocomplete="off" spellcheck="false" placeholder="automatica">
-          </div>
+      <div id="gen-custom" hidden>
+        <h3 class="step"><span>1</span> Reti e host</h3>
+        <div class="field count-field">
+          <label for="gen-count">Numero di reti</label>
+          <input id="gen-count" type="number" min="2" max="64" value="4">
         </div>
+        <div class="vlsm-rows" id="gen-rows"></div>
 
-        <div class="vlsm-actions">
-          <button class="btn primary" type="submit">Genera esercizio</button>
+        <h3 class="step"><span>2</span> Tipo di maschera</h3>
+        <div class="opts three" role="radiogroup" aria-label="Maschera">
+          <label class="opt"><input type="radio" name="gen-mask" value="variable" checked>
+            <span class="opt-body"><b>Variabile</b><small>VLSM: ogni rete con la sua maschera</small></span></label>
+          <label class="opt"><input type="radio" name="gen-mask" value="fixed">
+            <span class="opt-body"><b>Fissa</b><small>FLSM: la stessa maschera per tutte</small></span></label>
+          <label class="opt"><input type="radio" name="gen-mask" value="student">
+            <span class="opt-body"><b>A scelta</b><small>La sceglie lo studente</small></span></label>
         </div>
+      </div>
+
+      <h3 class="step"><span>3</span> Rete di partenza</h3>
+      <div class="opts two" role="radiogroup" aria-label="Rete di partenza">
+        <label class="opt"><input type="radio" name="gen-base" value="given" checked>
+          <span class="opt-body"><b>Fornita dall'esercizio</b><small>Lo studente parte da una rete già data</small></span></label>
+        <label class="opt"><input type="radio" name="gen-base" value="choose">
+          <span class="opt-body"><b>La sceglie lo studente</b><small>Deve trovare la rete privata adatta alle reti richieste</small></span></label>
+      </div>
+      <div class="field base-field" id="gen-base-field" hidden>
+        <label for="gen-base-net" title="Lascia vuoto per usare la rete privata standard più piccola che basta">Rete fornita (facoltativa)</label>
+        <input id="gen-base-net" autocomplete="off" spellcheck="false" placeholder="automatica, es. 172.16.0.0/16">
+      </div>
+
+      <div class="gen-actions">
+        <button class="btn primary big" type="submit">Genera esercizio</button>
         <div class="msg" id="gen-msg" role="status"></div>
-      </form>
-    </details>
+      </div>
+    </form>
   </section>
 
   <section class="card" id="ex-card" hidden>
