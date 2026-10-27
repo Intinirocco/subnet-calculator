@@ -134,14 +134,13 @@
   // Subnets (by CIDR) whose binary detail row is open
   const expanded = new Set();
   // 32 bits as dotted octets, network part and host part in different colours
+  // 32 bits as one small box each, grouped by octet: network bits green, host bits amber
   const binRow = (label, value, mask) => {
-    const netPart = el('span', { className: 'bits-net' }), hostPart = el('span', { className: 'bits-host' });
+    const bits = el('span', { className: 'bits' });
     for (let i = 0; i < 32; i++) {
-      const target = i < mask ? netPart : hostPart;
-      target.textContent += (i && i % 8 === 0 ? '.' : '') + ((value >>> (31 - i)) & 1);
+      bits.append(el('i', { className: 'bit ' + (i < mask ? 'n' : 'h') + (i && i % 8 === 0 ? ' g' : ''), textContent: String((value >>> (31 - i)) & 1) }));
     }
-    return el('div', { className: 'bin-row' }, el('span', { textContent: label }),
-      el('span', {}, netPart, hostPart), el('span', { className: 'dec', textContent: ipStr(value >>> 0) }));
+    return el('div', { className: 'bin-row' }, el('span', { textContent: label }), bits, el('span', { className: 'dec', textContent: ipStr(value >>> 0) }));
   };
 
   const el = (tag, props = {}, ...kids) => {

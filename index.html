@@ -3,25 +3,29 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Subnet Calculator visuale</title>
+<title>SubnetLab · Calcolatore di sottoreti</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Crect x='1' y='1' width='8' height='8' rx='2' fill='%2310b981'/%3E%3Crect x='11' y='1' width='8' height='8' rx='2' fill='%23f59e0b'/%3E%3Crect x='1' y='11' width='8' height='8' rx='2' fill='%23f59e0b'/%3E%3Crect x='11' y='11' width='8' height='8' rx='2' fill='%23e11d48'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<main>
-  <header>
-    <div>
-      <h1>Subnet Calculator visuale</h1>
-      <p class="no-print">Inserisci una rete, poi dividila e riuniscila fino a ottenere il piano di indirizzamento che ti serve.</p>
-    </div>
-    <nav class="site-nav no-print" aria-label="Sezioni del sito">
+<header class="topbar no-print">
+  <div class="topbar-in">
+    <a class="logo" href="index.html" aria-label="SubnetLab"><span class="logo-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>subnet<b>lab</b></a>
+    <nav class="site-nav" aria-label="Sezioni del sito">
       <a href="index.html" class="active" aria-current="page">Calcolatore</a>
       <a href="esercizi.html">Esercizi</a>
     </nav>
-    <div class="no-print header-actions">
+    <div class="header-actions">
       <button class="btn" id="restore" title="Riporta tutta la pagina allo stato iniziale">Ripristina</button>
       <button class="btn" id="theme" title="Cambia tema" aria-label="Cambia tema">◐</button>
     </div>
-  </header>
+  </div>
+</header>
+<div class="page-head">
+  <h1>Calcolatore di sottoreti</h1>
+  <p class="no-print">Inserisci una rete, poi dividila e riuniscila fino a ottenere il piano di indirizzamento che ti serve.</p>
+</div>
+<main>
 
   <section class="card no-print">
     <form class="net-form" id="net-form" novalidate>

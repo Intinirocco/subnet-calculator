@@ -1,4 +1,4 @@
-# Subnet Calculator visuale
+# SubnetLab
 
 Calcolatore di sottoreti IPv4: divisione e unione, pianificatore a maschera variabile o fissa,
 verifica di un partizionamento, topologia e comandi Cisco per dispositivo.

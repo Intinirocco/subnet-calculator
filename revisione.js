@@ -13,7 +13,7 @@
   }
 
   const n = ExUI.loadHistory().items.findIndex(x => x.id === id) + 1;
-  document.title = `Esercizio ${n} · Revisione`;
+  document.title = `Esercizio ${n} · Revisione · SubnetLab`;
   $('rev-title').textContent = `Esercizio ${n} · ${ExUI.LEVEL_NAMES[it.ex.level] || it.ex.level}`;
   const help = [it.hintsUsed ? ExUI.plural(it.hintsUsed, 'suggerimento usato', 'suggerimenti usati') : '', it.solutionShown ? 'soluzione vista' : ''].filter(Boolean);
   $('rev-sub').textContent = `Generato alle ${ExUI.time(it.created)} · ${ExUI.plural(it.attempts.length, 'tentativo', 'tentativi')}` + (help.length ? ' · ' + help.join(', ') : '');
